@@ -1,0 +1,28 @@
+{
+  "sources": {
+    "hackerNews": { "enabled": true, "weight": 0.3 },
+    "reddit": { "enabled": true, "weight": 0.25 },
+    "googleTrends": { "enabled": true, "weight": 0.3 },
+    "rss": { "enabled": true, "weight": 0.15 }
+  },
+  "topN": 20,
+  "defaultHoursWindow": 6,
+  "relevanceKeywords": [
+    "tech", "ai", "artificial intelligence", "software", "models", "release",
+    "benchmark", "open source", "machine learning", "llm", "gpu", "startup",
+    "programming", "developer", "api", "cloud", "data", "neural", "robotics",
+    "coding", "algorithm", "cybersecurity", "blockchain", "web", "mobile"
+  ],
+  "blacklistKeywords": [
+    "celebrity", "gossip", "kardashian", "reality tv", "horoscope", "astrology"
+  ],
+  "rssFeeds": [
+    "https://hnrss.org/newest?points=100",
+    "https://feeds.arstechnica.com/arstechnica/technology-lab",
+    "https://www.theverge.com/rss/index.xml",
+    "https://techcrunch.com/feed/"
+  ],
+  "cache": {
+    "ttlHours": 6
+  }
+}

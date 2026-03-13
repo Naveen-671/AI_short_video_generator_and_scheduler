@@ -1,0 +1,20 @@
+[
+  {
+    "topic": "OpenAI GPT-5 officially released — here's what's new",
+    "source": "reddit",
+    "score": 0.88,
+    "metadata": { "subreddit": "MachineLearning", "ups": 2450, "num_comments": 890, "link": "https://reddit.com/r/MachineLearning/comments/abc123" }
+  },
+  {
+    "topic": "Machine Learning engineers share top tools for 2026",
+    "source": "reddit",
+    "score": 0.65,
+    "metadata": { "subreddit": "programming", "ups": 870, "num_comments": 234, "link": "https://reddit.com/r/programming/comments/def456" }
+  },
+  {
+    "topic": "Open source AI models catching up to proprietary ones",
+    "source": "reddit",
+    "score": 0.72,
+    "metadata": { "subreddit": "technology", "ups": 1200, "num_comments": 345, "link": "https://reddit.com/r/technology/comments/ghi789" }
+  }
+]

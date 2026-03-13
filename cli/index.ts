@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { safeMkdir, writeJson, readJson } from '../modules/fsutils.js';
 import { createLogger } from '../modules/logger.js';
+import { runTrendDetection } from '../modules/trend/runTrendDetection.js';
 
 const logger = createLogger('cli');
 
@@ -66,8 +67,35 @@ export function run(inputPath: string, force = false): ScanResult {
 
 // CLI entry point
 const args = process.argv.slice(2);
-if (args.length > 0) {
-  const inputPath = args[0]!;
+const command = args[0];
+
+if (command === 'trend') {
+  // Parse trend options
+  const hoursArg = args.find((a) => a.startsWith('--hours='));
+  const topArg = args.find((a) => a.startsWith('--top='));
+  const fixturesArg = args.find((a) => a.startsWith('--fixtures='));
+  const force = args.includes('--force');
+
+  const hours = hoursArg ? parseInt(hoursArg.split('=')[1]!, 10) : undefined;
+  const top = topArg ? parseInt(topArg.split('=')[1]!, 10) : undefined;
+  const offlineFixtures = fixturesArg ? fixturesArg.split('=')[1]! : undefined;
+
+  runTrendDetection({ hours, top, force, offlineFixtures })
+    .then((result) => {
+      // eslint-disable-next-line no-console
+      console.log(`Trend detection complete: ${result.mergedTopics.length} merged topics`);
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify(result.mergedTopics.slice(0, 5), null, 2));
+    })
+    .catch((err) => {
+      logger.error('Trend detection failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (args.length > 0 && command) {
+  // Legacy scan command
+  const inputPath = command;
   const force = args.includes('--force');
   try {
     run(inputPath, force);

@@ -1,0 +1,20 @@
+[
+  {
+    "topic": "GPT-5",
+    "source": "google_trends",
+    "score": 0.95,
+    "metadata": { "query": "GPT-5", "region": "global", "interest": 95 }
+  },
+  {
+    "topic": "AI release",
+    "source": "google_trends",
+    "score": 0.67,
+    "metadata": { "query": "AI release", "region": "global", "interest": 67 }
+  },
+  {
+    "topic": "machine learning",
+    "source": "google_trends",
+    "score": 0.58,
+    "metadata": { "query": "machine learning", "region": "global", "interest": 58 }
+  }
+]
