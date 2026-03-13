@@ -1,0 +1,47 @@
+[
+  {
+    "scriptId": "gpt5-anime-001-30s-v1",
+    "ideaId": "gpt5-anime-001",
+    "channel": "anime_explains",
+    "title": "GPT-5 in 30s",
+    "hook": "GPT-5 just dropped — this changes everything.",
+    "timedSegments": [
+      { "label": "hook", "startSec": 0, "endSec": 3, "text": "GPT-5 just dropped — this changes everything." },
+      { "label": "point1", "startSec": 3, "endSec": 12, "text": "Here's what happened: GPT-5 has been making waves across the tech community." },
+      { "label": "point2", "startSec": 12, "endSec": 24, "text": "The key takeaway? This could reshape how we think about AI. Numbers and benchmarks support the hype." },
+      { "label": "cta", "startSec": 24, "endSec": 30, "text": "Follow for more anime-style tech explanations!" }
+    ],
+    "displayBullets": ["GPT-5 is here", "Key benchmarks revealed", "What it means for you"],
+    "estimatedLengthSec": 30,
+    "notesForVoice": "tone: energetic, pacing: medium",
+    "metadata": {
+      "styleHints": { "style": "anime, energetic" },
+      "visualHints": { "character": "gojo.png", "overlay": "benchmark-chart" }
+    },
+    "llm_cache_key": "abc123",
+    "requires_verification": false,
+    "createdAt": "2026-03-13T12:00:00Z"
+  },
+  {
+    "scriptId": "ai-tool-002-30s-v1",
+    "ideaId": "ai-tool-002",
+    "channel": "ai_tools",
+    "title": "AI coding tool spotlight",
+    "hook": "This tool writes code for you.",
+    "timedSegments": [
+      { "label": "hook", "startSec": 0, "endSec": 3, "text": "This tool writes code for you." },
+      { "label": "point1", "startSec": 3, "endSec": 15, "text": "It can generate entire functions from a single comment. Here's how it works." },
+      { "label": "cta", "startSec": 15, "endSec": 30, "text": "Follow for the latest AI tools and workflows!" }
+    ],
+    "displayBullets": ["AI coding assistant", "One comment = one function", "Try it today"],
+    "estimatedLengthSec": 30,
+    "notesForVoice": "tone: professional, pacing: medium-slow",
+    "metadata": {
+      "styleHints": { "style": "professional" },
+      "visualHints": { "overlay": "screen-capture" }
+    },
+    "llm_cache_key": "def456",
+    "requires_verification": true,
+    "createdAt": "2026-03-13T12:00:00Z"
+  }
+]
