@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
@@ -57,7 +57,7 @@ const sampleIdeas: VideoIdea[] = [
 ];
 
 describe('Script generator', () => {
-  beforeAll(() => {
+  beforeEach(() => {
     safeMkdir(TOPICS_DIR);
     writeJson(TOPICS_PATH, sampleIdeas);
   });
