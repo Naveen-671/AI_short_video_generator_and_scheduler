@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
 import { writeJson, safeMkdir } from '../modules/fsutils.js';
 import type { VideoIdea } from '../modules/topic/types.js';
 
-const RUN_ID = 'test-scripts-run';
 const TOPICS_DIR = path.resolve('data/topics');
 const SCRIPTS_DIR = path.resolve('data/scripts');
-const TOPICS_PATH = path.join(TOPICS_DIR, `${RUN_ID}.json`);
+
+let testRunId: string;
 
 const sampleIdeas: VideoIdea[] = [
   {
@@ -58,24 +58,26 @@ const sampleIdeas: VideoIdea[] = [
 
 describe('Script generator', () => {
   beforeEach(() => {
+    testRunId = `test-scripts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     safeMkdir(TOPICS_DIR);
-    writeJson(TOPICS_PATH, sampleIdeas);
+    writeJson(path.join(TOPICS_DIR, `${testRunId}.json`), sampleIdeas);
   });
 
-  afterAll(() => {
-    if (fs.existsSync(TOPICS_PATH)) fs.unlinkSync(TOPICS_PATH);
-    const scriptsFile = path.join(SCRIPTS_DIR, `${RUN_ID}.json`);
+  afterEach(() => {
+    const topicsFile = path.join(TOPICS_DIR, `${testRunId}.json`);
+    if (fs.existsSync(topicsFile)) fs.unlinkSync(topicsFile);
+    const scriptsFile = path.join(SCRIPTS_DIR, `${testRunId}.json`);
     if (fs.existsSync(scriptsFile)) fs.unlinkSync(scriptsFile);
   });
 
   it('generates scripts from topic ideas', async () => {
-    const outputPath = await generateScriptsFromTopics(RUN_ID, {
+    const outputPath = await generateScriptsFromTopics(testRunId, {
       variants: 2,
       lengths: [30],
       force: true,
     });
 
-    expect(outputPath).toContain(RUN_ID);
+    expect(outputPath).toContain(testRunId);
     expect(fs.existsSync(outputPath)).toBe(true);
 
     const scripts = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
@@ -99,7 +101,7 @@ describe('Script generator', () => {
   });
 
   it('timed segments sum to approximately estimatedLengthSec', async () => {
-    const outputPath = await generateScriptsFromTopics(RUN_ID, {
+    const outputPath = await generateScriptsFromTopics(testRunId, {
       variants: 1,
       lengths: [30],
       force: true,
@@ -114,7 +116,7 @@ describe('Script generator', () => {
   });
 
   it('supports multiple lengths', async () => {
-    const outputPath = await generateScriptsFromTopics(RUN_ID, {
+    const outputPath = await generateScriptsFromTopics(testRunId, {
       variants: 1,
       lengths: [15, 30, 45],
       force: true,
