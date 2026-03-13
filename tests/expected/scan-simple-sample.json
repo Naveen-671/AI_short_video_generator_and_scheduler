@@ -1,0 +1,8 @@
+{
+  "inputPath": "tests/fixtures/simple-sample",
+  "files": [
+    "src/api.js",
+    "src/app.js",
+    "src/service.js"
+  ]
+}

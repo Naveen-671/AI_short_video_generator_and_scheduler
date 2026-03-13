@@ -1,0 +1,2 @@
+# AutoShorts Progress
+- [ ] scaffold
