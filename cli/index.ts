@@ -4,6 +4,7 @@ import { safeMkdir, writeJson, readJson } from '../modules/fsutils.js';
 import { createLogger } from '../modules/logger.js';
 import { runTrendDetection } from '../modules/trend/runTrendDetection.js';
 import { generateFromTrends } from '../modules/topic/generateFromTrends.js';
+import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
 
 const logger = createLogger('cli');
 
@@ -132,6 +133,33 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Topic engine failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'scripts') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const variantsArg = args.find((a) => a.startsWith('--variants='));
+  const lengthsArg = args.find((a) => a.startsWith('--lengths='));
+  const force = args.includes('--force');
+
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+  if (!runId) {
+    // eslint-disable-next-line no-console
+    console.error('--runId is required for scripts command');
+    process.exit(1);
+  }
+
+  const variants = variantsArg ? parseInt(variantsArg.split('=')[1]!, 10) : undefined;
+  const lengths = lengthsArg ? lengthsArg.split('=')[1]!.split(',').map(Number) : undefined;
+
+  generateScriptsFromTopics(runId, { variants, lengths, force })
+    .then((outputPath) => {
+      // eslint-disable-next-line no-console
+      console.log(`Scripts generated: ${outputPath}`);
+    })
+    .catch((err) => {
+      logger.error('Script gen failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
