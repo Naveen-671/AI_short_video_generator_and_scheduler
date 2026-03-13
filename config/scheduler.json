@@ -1,0 +1,18 @@
+{
+  "intervalHours": 6,
+  "channels": ["anime_explains", "ai_tools", "tech_facts"],
+  "pipeline": {
+    "trends": true,
+    "topics": true,
+    "scripts": true,
+    "voice": true,
+    "video": true,
+    "captions": true,
+    "upload": true
+  },
+  "defaults": {
+    "variants": 3,
+    "lengths": [30],
+    "concurrency": 2
+  }
+}

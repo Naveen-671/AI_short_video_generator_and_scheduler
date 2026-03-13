@@ -9,6 +9,7 @@ import { synthesizeForScripts } from '../modules/voice/synthesizeForScripts.js';
 import { renderFromScript } from '../modules/video/renderFromScript.js';
 import { generateForVideos } from '../modules/captions/generateForVideos.js';
 import { uploadVideos } from '../modules/uploader/uploadVideos.js';
+import { runPipeline } from '../modules/scheduler/pipeline.js';
 
 const logger = createLogger('cli');
 
@@ -272,6 +273,18 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Upload failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'run') {
+  runPipeline()
+    .then((result) => {
+      // eslint-disable-next-line no-console
+      console.log(`Pipeline ${result.status}: ${result.steps.length} steps, runId=${result.runId}`);
+    })
+    .catch((err) => {
+      logger.error('Pipeline failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
