@@ -39,37 +39,53 @@ function pad3(n: number): string {
 }
 
 /**
- * Escape text for ffmpeg drawtext filter (without single-quote wrapping).
- * We avoid wrapping in single quotes because apostrophes in text would
- * break ffmpeg's filter-level quote parsing.
+ * Escape text for ffmpeg drawtext filter, wrapped in single quotes.
+ * Apostrophes are replaced with Unicode right single quote so
+ * single-quote wrapping is safe. Colons and other separators are
+ * also backslash-escaped for double protection.
  */
 function escapeDrawtext(text: string): string {
-  return text
+  const inner = text
     .replace(/\\/g, '\\\\')       // \ → \\
-    .replace(/'/g, '\u2019')       // ASCII apostrophe → Unicode right single quote (visually identical)
+    .replace(/'/g, '\u2019')       // ASCII apostrophe → Unicode right single quote
     .replace(/:/g, '\\:')         // : → \: (option separator)
     .replace(/;/g, '\\;')         // ; → \; (filter chain separator)
-    .replace(/,/g, '\\,')         // , → \, (filter separator within chain)
+    .replace(/,/g, '\\,')         // , → \, (filter separator)
     .replace(/%/g, '%%')          // % → %% (printf escape)
-    .replace(/\[/g, '\\[')        // [ → \[ (stream label bracket)
-    .replace(/]/g, '\\]');         // ] → \] (stream label bracket)
+    .replace(/\[/g, '\\[')        // [ → \[
+    .replace(/]/g, '\\]');         // ] → \]
+  return `'${inner}'`;
+}
+
+export interface OverlayInfo {
+  title: string;
+  sourceLine: string;
+  displayBullets: string[];
+  totalDuration: number;
 }
 
 /**
  * Build ffmpeg filter_complex for the dialogue composite video.
  *
  * Layout (1080×1920 vertical):
- * ┌──────────────────┐
- * │                  │  ← Background video/color (full frame)
- * │                  │
- * │   ┌──────────┐   │  ← Caption box (center, word-highlighted)
- * │   │ CAPTION  │   │
- * │   └──────────┘   │
- * │                  │
- * │  ┌───┐    ┌───┐  │  ← Character sprites (bottom left/right)
- * │  │ N │    │ R │  │
- * │  └───┘    └───┘  │
- * └──────────────────┘
+ * ┌──────────────────────┐
+ * │ ▓▓ TOPIC TITLE ▓▓▓▓▓ │  ← Title bar (persistent)
+ * │                       │
+ * │  • Bullet 1           │  ← Bullet points (appear progressively)
+ * │  • Bullet 2           │
+ * │  • Bullet 3           │
+ * │                       │
+ * │     SPEAKER NAME      │  ← Speaker name label
+ * │   ┌──────────────┐    │  ← Caption box (center)
+ * │   │  CAPTION TEXT │    │
+ * │   └──────────────┘    │
+ * │                       │
+ * │  ┌───┐        ┌───┐   │  ← Character sprites (bottom)
+ * │  │ N │        │ R │   │
+ * │  └───┘        └───┘   │
+ * │  Source: HackerNews    │  ← Source citation
+ * │  ████████░░░░░░░░░░░░ │  ← Progress bar
+ * └───────────────────────┘
  */
 export function buildDialogueFilter(
   segments: TimedSegment[],
@@ -78,6 +94,7 @@ export function buildDialogueFilter(
   hasBackground: boolean,
   hasNarratorSprite: boolean,
   hasReactorSprite: boolean,
+  overlay?: OverlayInfo,
 ): { filterComplex: string; inputCount: number } {
   const pair = getCharacterPair(channel);
   const captionBg = (template.captionBgColor ?? '#6b21a8').replace(/^#/, '0x');
@@ -188,6 +205,77 @@ export function buildDialogueFilter(
     currentLabel = `[name_${seg.label}]`;
   }
 
+  // --- Step 5: Info overlays (title, source, bullets, progress bar) ---
+  if (overlay) {
+    const accentColor = (template.accentColor ?? '#e94560').replace(/^#/, '0x');
+    const overlayFontSize = Math.round(fontSize * 0.55);
+    const smallFontSize = Math.round(fontSize * 0.45);
+    const dur = overlay.totalDuration;
+
+    // 5a: Title bar — dark semi-transparent strip at top with title text
+    filterParts.push(
+      `${currentLabel}drawbox=x=0:y=0:w=iw:h=90:color=0x000000@0.65:t=fill[title_bg]`
+    );
+    currentLabel = '[title_bg]';
+
+    const escapedTitle = escapeDrawtext(overlay.title.toUpperCase());
+    filterParts.push(
+      `${currentLabel}drawtext=text=${escapedTitle}:font=${fontFamily}:fontsize=${overlayFontSize}:fontcolor=${captionHighlight}:` +
+      `x=(w-tw)/2:y=28[title_txt]`
+    );
+    currentLabel = '[title_txt]';
+
+    // 5b: Bullet points — appear progressively in the upper area
+    if (overlay.displayBullets.length > 0) {
+      const bulletStartTime = Math.max(3, dur * 0.08);
+      const bulletInterval = (dur * 0.7) / Math.max(1, overlay.displayBullets.length);
+      const bulletX = 60;
+      const bulletStartY = 130;
+      const bulletLineH = Math.round(overlayFontSize * 1.6);
+
+      for (let i = 0; i < overlay.displayBullets.length; i++) {
+        const bulletText = escapeDrawtext(`\u2022 ${overlay.displayBullets[i]!}`);
+        const showTime = bulletStartTime + i * bulletInterval;
+        const yPos = bulletStartY + i * bulletLineH;
+
+        // Background strip for readability
+        filterParts.push(
+          `${currentLabel}drawbox=x=40:y=${yPos - 4}:w=1000:h=${bulletLineH}:color=0x000000@0.45:t=fill:` +
+          `enable=gte(t\\,${showTime.toFixed(2)})[bul_bg_${i}]`
+        );
+        currentLabel = `[bul_bg_${i}]`;
+
+        filterParts.push(
+          `${currentLabel}drawtext=text=${bulletText}:font=${fontFamily}:fontsize=${smallFontSize}:fontcolor=0xf0f0f0:` +
+          `x=${bulletX}:y=${yPos}:` +
+          `enable=gte(t\\,${showTime.toFixed(2)})[bul_${i}]`
+        );
+        currentLabel = `[bul_${i}]`;
+      }
+    }
+
+    // 5c: Source citation — bottom area, above the progress bar
+    if (overlay.sourceLine) {
+      const escapedSource = escapeDrawtext(overlay.sourceLine);
+      filterParts.push(
+        `${currentLabel}drawbox=x=0:y=ih-50:w=iw:h=44:color=0x000000@0.55:t=fill[src_bg]`
+      );
+      currentLabel = '[src_bg]';
+
+      filterParts.push(
+        `${currentLabel}drawtext=text=${escapedSource}:font=${fontFamily}:fontsize=${smallFontSize}:fontcolor=0xcccccc:` +
+        `x=(w-tw)/2:y=h-44[src_txt]`
+      );
+      currentLabel = '[src_txt]';
+    }
+
+    // 5d: Progress bar — thin accent-colored bar at the very bottom
+    filterParts.push(
+      `${currentLabel}drawbox=x=0:y=ih-6:w=iw*t/${dur.toFixed(2)}:h=6:color=${accentColor}@0.9:t=fill[prog]`
+    );
+    currentLabel = '[prog]';
+  }
+
   // Final output label — replace the last occurrence of currentLabel with [outv]
   const finalFilter = filterParts.join(';');
   const lastIdx = finalFilter.lastIndexOf(currentLabel);
@@ -212,6 +300,7 @@ export function buildFfmpegCommand(
   template: TemplateConfig,
   channel: string,
   watermarkPath?: string,
+  overlay?: OverlayInfo,
 ): string[] {
   const args: string[] = ['ffmpeg', '-y'];
 
@@ -249,6 +338,7 @@ export function buildFfmpegCommand(
     hasBackground,
     hasNarratorSprite,
     hasReactorSprite,
+    overlay,
   );
 
   // Handle watermark (append to filter)

@@ -15,6 +15,7 @@ export interface ScriptArtifact {
   channel: string;
   title: string;
   hook: string;
+  sourceLine: string;
   timedSegments: TimedSegment[];
   displayBullets: string[];
   estimatedLengthSec: number;

@@ -116,7 +116,7 @@ describe('Video render helpers', () => {
     const template = getTemplateForChannel('anime_explains');
     const { filterComplex, inputCount } = buildDialogueFilter(segments, template, 'anime_explains', false, false, false);
     expect(filterComplex).toContain('drawtext=');
-    expect(filterComplex).toContain('text=Hello');
+    expect(filterComplex).toContain("text='Hello'");
     expect(filterComplex).toContain('enable=');
     expect(inputCount).toBe(2);
   });

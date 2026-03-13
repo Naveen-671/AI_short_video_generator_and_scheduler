@@ -5,6 +5,7 @@ import { createLogger } from '../logger.js';
 import { readJson, writeJson, safeMkdir } from '../fsutils.js';
 import { getTemplateForChannel } from './templates.js';
 import { generateSrt, buildFfmpegCommand, calculateDuration } from './renderHelpers.js';
+import type { OverlayInfo } from './renderHelpers.js';
 import type { ScriptArtifact } from '../script/types.js';
 import type { AudioManifest } from '../voice/types.js';
 import type { RenderOptions, VideoManifest, VideoManifestItem } from './types.js';
@@ -114,6 +115,14 @@ async function renderSingleVideo(
   fs.writeFileSync(srtPath, srtContent, 'utf-8');
 
   if (ffmpegPath && audioPath && fs.existsSync(audioPath) && !options.dryRun) {
+    // Build overlay info from script metadata
+    const overlayInfo: OverlayInfo = {
+      title: script.title,
+      sourceLine: script.sourceLine ?? '',
+      displayBullets: script.displayBullets ?? [],
+      totalDuration: durationSec,
+    };
+
     // Real ffmpeg rendering
     const cmdArgs = buildFfmpegCommand(
       audioPath,
@@ -123,6 +132,7 @@ async function renderSingleVideo(
       template,
       script.channel,
       options.watermark,
+      overlayInfo,
     );
 
     logger.info(`Rendering ${script.scriptId}: ${cmdArgs[0]} [${cmdArgs.length} args]`);
@@ -155,6 +165,12 @@ async function renderSingleVideo(
   } else {
     // Mock rendering (no ffmpeg or dry-run)
     if (options.dryRun) {
+      const dryOverlay: OverlayInfo = {
+        title: script.title,
+        sourceLine: script.sourceLine ?? '',
+        displayBullets: script.displayBullets ?? [],
+        totalDuration: durationSec,
+      };
       const cmdArgs = buildFfmpegCommand(
         audioPath ?? 'audio.mp3',
         videoPath,
@@ -163,6 +179,7 @@ async function renderSingleVideo(
         template,
         script.channel,
         options.watermark,
+        dryOverlay,
       );
       logger.info(`[DRY-RUN] Would execute: ${cmdArgs.join(' ')}`);
     }

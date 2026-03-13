@@ -44,7 +44,7 @@ async function main() {
   const t1 = Date.now();
   const scriptsPath = await generateScriptsFromTopics(RUN_ID, {
     variants: 1,
-    lengths: [30],
+    lengths: [60],
     force: true,
   });
   console.log(`Scripts: ${scriptsPath} (${Date.now() - t1}ms)`);
