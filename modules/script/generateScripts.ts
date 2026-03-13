@@ -94,6 +94,7 @@ async function generateSingleScript(
   const prompt = `You are a professional short-form video copywriter specialized in 15–60 second educational content.
 
 Given the compact input metadata, produce a JSON object with a single script variant tailored to the requested length.
+IMPORTANT: Output ONLY valid JSON. No markdown, no code fences, no explanation — just the raw JSON object.
 
 Input:
 {
@@ -129,13 +130,23 @@ Output JSON format:
 
   try {
     const result = await withRetry(
-      () => provider.generate({ prompt, maxTokens: 500 }),
+      () => provider.generate({ prompt, maxTokens: 500, jsonMode: true }),
       { label: `script-gen-${scriptId}`, maxRetries: 2 },
     );
 
-    // Attempt to parse LLM JSON
+    // Attempt to parse LLM JSON (strip markdown fences if present)
     try {
-      const parsed = JSON.parse(result.text);
+      let jsonText = result.text.trim();
+      // Strip markdown code fences: ```json ... ``` or ``` ... ```
+      const fenceMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (fenceMatch) jsonText = fenceMatch[1]!.trim();
+      // Fallback: find first { ... last }
+      if (!jsonText.startsWith('{')) {
+        const start = jsonText.indexOf('{');
+        const end = jsonText.lastIndexOf('}');
+        if (start !== -1 && end > start) jsonText = jsonText.slice(start, end + 1);
+      }
+      const parsed = JSON.parse(jsonText);
       title = parsed.title ?? `${idea.topic} in ${lengthSec}s`;
       hook = parsed.hook ?? `${idea.topic} — wow.`;
       timedSegments = Array.isArray(parsed.timedSegments) ? parsed.timedSegments : buildDefaultSegments(lengthSec, idea.topic, idea.channel);

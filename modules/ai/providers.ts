@@ -11,6 +11,7 @@ export interface GenerateOptions {
   prompt: string;
   maxTokens?: number;
   temperature?: number;
+  jsonMode?: boolean;
 }
 
 export interface GenerateResult {
@@ -50,12 +51,15 @@ function createChatProvider(
     name,
     async generate(options: GenerateOptions): Promise<GenerateResult> {
       const model = process.env['LLM_MODEL'] ?? defaultModel;
-      const body = {
+      const body: Record<string, unknown> = {
         model,
         messages: [{ role: 'user', content: options.prompt }],
         max_tokens: options.maxTokens ?? 1024,
         temperature: options.temperature ?? 0.7,
       };
+      if (options.jsonMode) {
+        body['response_format'] = { type: 'json_object' };
+      }
 
       logger.info(`[${name}] Calling ${model} (max_tokens=${body.max_tokens})`);
 

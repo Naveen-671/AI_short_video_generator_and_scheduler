@@ -105,6 +105,7 @@ async function generateScriptOutline(
 
   const provider = getProvider();
   const prompt = `You are a concise short-video copywriter. Given a topic and channel style, produce a 30-second script outline divided into segments. Keep the hook under 4 seconds. Provide a catchy title.
+IMPORTANT: Output ONLY valid JSON. No markdown, no code fences, no explanation.
 
 Input:
 topic: ${topic}
@@ -122,11 +123,19 @@ Output JSON:
   }
 }`;
 
-  const result = await provider.generate({ prompt, maxTokens: 300 });
+  const result = await provider.generate({ prompt, maxTokens: 300, jsonMode: true });
 
   // Try to parse LLM response as JSON; fall back to template
   try {
-    const parsed = JSON.parse(result.text);
+    let jsonText = result.text.trim();
+    const fenceMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) jsonText = fenceMatch[1]!.trim();
+    if (!jsonText.startsWith('{')) {
+      const start = jsonText.indexOf('{');
+      const end = jsonText.lastIndexOf('}');
+      if (start !== -1 && end > start) jsonText = jsonText.slice(start, end + 1);
+    }
+    const parsed = JSON.parse(jsonText);
     const output = {
       title: parsed.title ?? `${topic} in 30 seconds`,
       scriptOutline: {
