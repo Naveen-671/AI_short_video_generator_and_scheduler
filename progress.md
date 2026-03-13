@@ -4,3 +4,4 @@
 ✔ agent-200_trend_detection — multi-source trend detector implemented — 2026-03-13T17:15:00Z — artifacts: data/trends/2026-03-13T17:15:00Z.json
 ✔ agent-300_topic_engine — channel-specific video ideas generator — 2026-03-13T17:20:00Z — artifacts: data/topics/<runId>.json
 ✔ agent-400_script_generator — multi-variant script generator with timed segments, caching, retries — 2026-03-13T17:25:00Z — artifacts: data/scripts/<runId>.json
+✔ agent-500_voice_generation — modular TTS pipeline with provider fallback, mock synthesis — 2026-03-13T17:30:00Z — artifacts: data/audio/<runId>.json
