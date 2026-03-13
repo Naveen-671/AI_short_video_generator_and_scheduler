@@ -7,6 +7,7 @@ import { generateFromTrends } from '../modules/topic/generateFromTrends.js';
 import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
 import { synthesizeForScripts } from '../modules/voice/synthesizeForScripts.js';
 import { renderFromScript } from '../modules/video/renderFromScript.js';
+import { generateForVideos } from '../modules/captions/generateForVideos.js';
 
 const logger = createLogger('cli');
 
@@ -218,6 +219,31 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Video rendering failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'captions') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const burnIn = args.includes('--burnIn');
+  const languageArg = args.find((a) => a.startsWith('--language='));
+
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+  if (!runId) {
+    // eslint-disable-next-line no-console
+    console.error('--runId is required for captions command');
+    process.exit(1);
+  }
+
+  const language = languageArg ? languageArg.split('=')[1]! : undefined;
+
+  generateForVideos(runId, { language, burnIn })
+    .then((manifestPath) => {
+      // eslint-disable-next-line no-console
+      console.log(`Captions generated: ${manifestPath}`);
+    })
+    .catch((err) => {
+      logger.error('Captions failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
