@@ -6,6 +6,7 @@ import { runTrendDetection } from '../modules/trend/runTrendDetection.js';
 import { generateFromTrends } from '../modules/topic/generateFromTrends.js';
 import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
 import { synthesizeForScripts } from '../modules/voice/synthesizeForScripts.js';
+import { renderFromScript } from '../modules/video/renderFromScript.js';
 
 const logger = createLogger('cli');
 
@@ -187,6 +188,36 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Voice synthesis failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'render') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const templateArg = args.find((a) => a.startsWith('--template='));
+  const watermarkArg = args.find((a) => a.startsWith('--watermark='));
+  const concurrencyArg = args.find((a) => a.startsWith('--concurrency='));
+  const dryRun = args.includes('--dry-run');
+  const keepTemp = args.includes('--keep-temp');
+
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+  if (!runId) {
+    // eslint-disable-next-line no-console
+    console.error('--runId is required for render command');
+    process.exit(1);
+  }
+
+  const template = templateArg ? templateArg.split('=')[1]! : undefined;
+  const watermark = watermarkArg ? watermarkArg.split('=')[1]! : undefined;
+  const concurrency = concurrencyArg ? parseInt(concurrencyArg.split('=')[1]!, 10) : undefined;
+
+  renderFromScript(runId, { template, watermark, concurrency, dryRun, keepTemp })
+    .then((manifestPath) => {
+      // eslint-disable-next-line no-console
+      console.log(`Video rendering complete: ${manifestPath}`);
+    })
+    .catch((err) => {
+      logger.error('Video rendering failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
