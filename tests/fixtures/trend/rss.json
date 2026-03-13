@@ -1,0 +1,14 @@
+[
+  {
+    "topic": "Tech giants scramble as new AI regulations proposed",
+    "source": "rss",
+    "score": 0.80,
+    "metadata": { "feed": "https://techcrunch.com/feed/", "link": "https://techcrunch.com/2026/03/ai-regulations" }
+  },
+  {
+    "topic": "Developer tools powered by AI see massive adoption",
+    "source": "rss",
+    "score": 0.70,
+    "metadata": { "feed": "https://feeds.arstechnica.com/arstechnica/technology-lab", "link": "https://arstechnica.com/dev-tools-ai" }
+  }
+]

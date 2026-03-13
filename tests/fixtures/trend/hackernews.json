@@ -1,0 +1,26 @@
+[
+  {
+    "topic": "OpenAI GPT-5 Release Date Announced",
+    "source": "hackernews",
+    "score": 0.92,
+    "metadata": { "hn_item_id": 40001, "points": 485, "num_comments": 312, "url": "https://openai.com/blog/gpt5" }
+  },
+  {
+    "topic": "New AI benchmark shows surprising results",
+    "source": "hackernews",
+    "score": 0.74,
+    "metadata": { "hn_item_id": 40002, "points": 210, "num_comments": 98, "url": "https://example.com/ai-benchmark" }
+  },
+  {
+    "topic": "Rust programming language hits new milestone",
+    "source": "hackernews",
+    "score": 0.61,
+    "metadata": { "hn_item_id": 40003, "points": 155, "num_comments": 67, "url": "https://blog.rust-lang.org/milestone" }
+  },
+  {
+    "topic": "Cloud computing costs drop significantly in 2026",
+    "source": "hackernews",
+    "score": 0.55,
+    "metadata": { "hn_item_id": 40004, "points": 120, "num_comments": 45, "url": "https://example.com/cloud-costs" }
+  }
+]

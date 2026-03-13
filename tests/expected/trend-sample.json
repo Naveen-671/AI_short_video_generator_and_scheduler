@@ -1,0 +1,20 @@
+{
+  "description": "Expected output shape for trend detection run",
+  "runId": "2026-03-13T12:00:00.000Z",
+  "sourceScores": [
+    {
+      "topic": "OpenAI GPT-5 Release Date Announced",
+      "source": "hackernews",
+      "score": 0.92,
+      "metadata": {}
+    }
+  ],
+  "mergedTopics": [
+    {
+      "topic": "OpenAI GPT-5 Release Date Announced",
+      "score": 0.82,
+      "sources": ["hackernews", "reddit", "google_trends"],
+      "examples": []
+    }
+  ]
+}
