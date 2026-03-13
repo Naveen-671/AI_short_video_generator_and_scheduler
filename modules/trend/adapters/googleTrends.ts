@@ -1,10 +1,18 @@
 import { execFile } from 'node:child_process';
+import * as fs from 'node:fs';
 import type { TrendAdapter, SourceScore } from '../types.js';
 import { getCached, setCache } from '../cache.js';
 import { createLogger } from '../../logger.js';
 
 const logger = createLogger('trend-google');
 const CACHE_MODULE = 'trend-google';
+
+function findPython(): string {
+  const venvPython = process.platform === 'win32'
+    ? '.venv/Scripts/python.exe'
+    : '.venv/bin/python';
+  return fs.existsSync(venvPython) ? venvPython : 'python';
+}
 
 interface PyTrendsResult {
   keyword: string;
@@ -44,7 +52,7 @@ except Exception as e:
 `;
 
     execFile(
-      'python',
+      findPython(),
       ['-c', script, JSON.stringify(keywords)],
       { timeout: 30000 },
       (err, stdout, stderr) => {
