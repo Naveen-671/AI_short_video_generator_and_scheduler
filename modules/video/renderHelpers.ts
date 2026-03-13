@@ -46,17 +46,19 @@ export function buildDrawtextFilter(
   const filters: string[] = [];
 
   for (const seg of segments) {
+    // Escape order matters: backslashes first, then special chars
     const escapedText = seg.text
-      .replace(/'/g, "\\'")
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "'\\\\\\''")
       .replace(/:/g, '\\:')
-      .replace(/\\/g, '\\\\');
+      .replace(/%/g, '%%');
 
     // Position text in lower third
     const y = seg.label === 'hook' ? '(h-th)/2' : 'h-th-100';
-    const size = seg.label === 'hook' ? fontSize * 1.3 : fontSize;
+    const size = Math.round(seg.label === 'hook' ? fontSize * 1.3 : fontSize);
 
     filters.push(
-      `drawtext=text='${escapedText}':fontfile=${fontFamily}:fontsize=${size}:fontcolor=${textColor}:x=(w-tw)/2:y=${y}:enable='between(t,${seg.startSec},${seg.endSec})'`,
+      `drawtext=text='${escapedText}':font=${fontFamily}:fontsize=${size}:fontcolor=${textColor}:x=(w-tw)/2:y=${y}:enable='between(t,${seg.startSec},${seg.endSec})'`,
     );
   }
 
@@ -76,10 +78,13 @@ export function buildFfmpegCommand(
 ): string[] {
   const args: string[] = ['ffmpeg', '-y'];
 
+  // Convert #hex to 0xhex for lavfi compatibility
+  const bgColor = template.bgColor.replace(/^#/, '0x');
+
   // Generate solid color background
   args.push(
     '-f', 'lavfi',
-    '-i', `color=c=${template.bgColor}:s=1080x1920:d=${durationSec}:r=30`,
+    '-i', `color=c=${bgColor}:s=1080x1920:d=${durationSec}:r=30`,
   );
 
   // Audio input

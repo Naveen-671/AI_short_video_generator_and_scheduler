@@ -14,6 +14,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', 'data/', 'logs/', 'tests/fixtures/', '*.config.*'],
+    ignores: ['dist/', 'node_modules/', 'data/', 'logs/', 'tests/fixtures/', '*.config.*', '.venv/'],
   },
 );
