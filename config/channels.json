@@ -1,0 +1,27 @@
+{
+  "channels": {
+    "anime_explains": {
+      "style": "anime, character: energetic, fun",
+      "keywords": ["model release", "new model", "AI announcement", "benchmarks", "ai", "gpt", "llm"],
+      "defaultLengthSec": 30,
+      "character": "gojo.png",
+      "bgMusic": "energetic-loop-01"
+    },
+    "ai_tools": {
+      "style": "professional, screen-capture style, utility-focused",
+      "keywords": ["tool", "plugin", "workflow", "extension", "api", "developer", "software"],
+      "defaultLengthSec": 30,
+      "character": null,
+      "bgMusic": "chill-tech-01"
+    },
+    "tech_facts": {
+      "style": "infographic, data-driven, fast cuts, numeric overlays",
+      "keywords": ["how", "what", "explained", "facts", "benchmark", "data", "cloud", "release"],
+      "defaultLengthSec": 30,
+      "character": null,
+      "bgMusic": "upbeat-facts-01"
+    }
+  },
+  "variantsPerTopic": 3,
+  "maxIdeasPerRun": 60
+}

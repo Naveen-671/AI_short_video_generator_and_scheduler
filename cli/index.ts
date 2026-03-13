@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { safeMkdir, writeJson, readJson } from '../modules/fsutils.js';
 import { createLogger } from '../modules/logger.js';
 import { runTrendDetection } from '../modules/trend/runTrendDetection.js';
+import { generateFromTrends } from '../modules/topic/generateFromTrends.js';
 
 const logger = createLogger('cli');
 
@@ -89,6 +90,48 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Trend detection failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'topics') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const variantsArg = args.find((a) => a.startsWith('--variants='));
+  const trendPathArg = args.find((a) => a.startsWith('--trendPath='));
+  const force = args.includes('--force');
+
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+  const variants = variantsArg ? parseInt(variantsArg.split('=')[1]!, 10) : undefined;
+
+  // Find the trend artifact
+  let trendPath = trendPathArg ? trendPathArg.split('=')[1]! : undefined;
+  if (!trendPath) {
+    // Try to find latest trend artifact
+    const trendsDir = path.resolve('data/trends');
+    if (fs.existsSync(trendsDir)) {
+      const files = fs.readdirSync(trendsDir)
+        .filter((f) => f.endsWith('.json') && f !== 'history.json')
+        .sort()
+        .reverse();
+      if (files.length > 0) trendPath = path.join(trendsDir, files[0]!);
+    }
+  }
+
+  if (!trendPath) {
+    // eslint-disable-next-line no-console
+    console.error('No trend artifact found. Run "trend" command first or provide --trendPath=...');
+    process.exit(1);
+  }
+
+  generateFromTrends(trendPath, { runId, variants, force })
+    .then((ideas) => {
+      // eslint-disable-next-line no-console
+      console.log(`Topic engine generated ${ideas.length} ideas`);
+      // eslint-disable-next-line no-console
+      console.log(JSON.stringify(ideas.slice(0, 3), null, 2));
+    })
+    .catch((err) => {
+      logger.error('Topic engine failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
