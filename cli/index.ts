@@ -5,6 +5,7 @@ import { createLogger } from '../modules/logger.js';
 import { runTrendDetection } from '../modules/trend/runTrendDetection.js';
 import { generateFromTrends } from '../modules/topic/generateFromTrends.js';
 import { generateScriptsFromTopics } from '../modules/script/generateScripts.js';
+import { synthesizeForScripts } from '../modules/voice/synthesizeForScripts.js';
 
 const logger = createLogger('cli');
 
@@ -160,6 +161,32 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Script gen failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'voice') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const voiceArg = args.find((a) => a.startsWith('--voice='));
+  const concurrencyArg = args.find((a) => a.startsWith('--concurrency='));
+
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+  if (!runId) {
+    // eslint-disable-next-line no-console
+    console.error('--runId is required for voice command');
+    process.exit(1);
+  }
+
+  const voice = voiceArg ? voiceArg.split('=')[1]! : undefined;
+  const concurrency = concurrencyArg ? parseInt(concurrencyArg.split('=')[1]!, 10) : undefined;
+
+  synthesizeForScripts(runId, { voice, concurrency })
+    .then((manifestPath) => {
+      // eslint-disable-next-line no-console
+      console.log(`Voice synthesis complete: ${manifestPath}`);
+    })
+    .catch((err) => {
+      logger.error('Voice synthesis failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
