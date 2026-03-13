@@ -30,37 +30,37 @@ function makeScriptId(ideaId: string, length: number, variant: number): string {
   return `${ideaId}-${length}s-v${variant}`;
 }
 
-function buildDefaultSegments(lengthSec: number, topic: string, channel: string): TimedSegment[] {
-  const channelCta: Record<string, string> = {
-    anime_explains: 'Follow for more anime-style tech explanations!',
-    ai_tools: 'Follow for the latest AI tools and workflows!',
-    tech_facts: 'Follow for daily tech facts!',
-  };
-
+function buildDefaultSegments(lengthSec: number, topic: string, _channel: string): TimedSegment[] {
   if (lengthSec <= 15) {
     return [
-      { label: 'hook', startSec: 0, endSec: 3, text: `${topic} — here's the quick take.` },
-      { label: 'point1', startSec: 3, endSec: 10, text: `The key highlight you need to know about ${topic}.` },
-      { label: 'cta', startSec: 10, endSec: 15, text: channelCta[channel] ?? 'Follow for more!' },
+      { label: 'hook', startSec: 0, endSec: 3, text: `Yo, have you SEEN this? ${topic} just dropped!`, speaker: 'narrator', emotion: 'excited' },
+      { label: 'react1', startSec: 3, endSec: 8, text: `Wait, for REAL? That sounds huge... tell me everything!`, speaker: 'reactor', emotion: 'surprised' },
+      { label: 'explain1', startSec: 8, endSec: 13, text: `It's a complete game changer — you HAVE to see the details.`, speaker: 'narrator', emotion: 'dramatic' },
+      { label: 'cta', startSec: 13, endSec: 15, text: `Yo FOLLOW for more tech breakdowns like this!`, speaker: 'reactor', emotion: 'cheerful' },
     ];
   }
 
   if (lengthSec <= 30) {
     return [
-      { label: 'hook', startSec: 0, endSec: 3, text: `${topic} — this changes everything.` },
-      { label: 'point1', startSec: 3, endSec: 12, text: `Here's what happened: ${topic} has been making waves across the tech community.` },
-      { label: 'point2', startSec: 12, endSec: 24, text: `The key takeaway? This could reshape how we think about this space. Numbers and benchmarks support the hype.` },
-      { label: 'cta', startSec: 24, endSec: 30, text: channelCta[channel] ?? 'Follow for more!' },
+      { label: 'hook', startSec: 0, endSec: 3, text: `Dude, ${topic} is BLOWING UP right now!`, speaker: 'narrator', emotion: 'excited' },
+      { label: 'react1', startSec: 3, endSec: 7, text: `No WAY... what happened?`, speaker: 'reactor', emotion: 'surprised' },
+      { label: 'explain1', startSec: 7, endSec: 14, text: `So basically, ${topic} has been making MASSIVE waves across the entire tech community. Everyone's talking about it.`, speaker: 'narrator', emotion: 'serious' },
+      { label: 'react2', startSec: 14, endSec: 18, text: `That's actually INSANE! But hold on... what does it mean for US?`, speaker: 'reactor', emotion: 'curious' },
+      { label: 'explain2', startSec: 18, endSec: 26, text: `And here's the craziest part... this could completely change how we work. The numbers are BACKING it up.`, speaker: 'narrator', emotion: 'dramatic' },
+      { label: 'cta', startSec: 26, endSec: 30, text: `Bro FOLLOW right now, we're breaking down more of this!`, speaker: 'reactor', emotion: 'cheerful' },
     ];
   }
 
-  // 45s
+  // 45s+
   return [
-    { label: 'hook', startSec: 0, endSec: 3, text: `${topic} just dropped — and it's big.` },
-    { label: 'point1', startSec: 3, endSec: 15, text: `First, let's talk about what's new. ${topic} introduces several significant changes.` },
-    { label: 'point2', startSec: 15, endSec: 28, text: `The benchmarks are impressive. Early tests show notable improvements across the board.` },
-    { label: 'point3', startSec: 28, endSec: 38, text: `What does this mean for you? It could change your workflow starting today.` },
-    { label: 'cta', startSec: 38, endSec: 45, text: channelCta[channel] ?? 'Follow for more!' },
+    { label: 'hook', startSec: 0, endSec: 3, text: `Okay you NEED to hear this — ${topic} just dropped!`, speaker: 'narrator', emotion: 'excited' },
+    { label: 'react1', startSec: 3, endSec: 6, text: `Wait WHAT? Give me the details right now!`, speaker: 'reactor', emotion: 'surprised' },
+    { label: 'explain1', startSec: 6, endSec: 15, text: `So here's the deal. ${topic} introduces several HUGE changes that nobody saw coming...`, speaker: 'narrator', emotion: 'dramatic' },
+    { label: 'react2', startSec: 15, endSec: 19, text: `Okay I'm listening... how big are we talking here?`, speaker: 'reactor', emotion: 'curious' },
+    { label: 'explain2', startSec: 19, endSec: 30, text: `The benchmarks are WILD. Early tests show massive improvements across the board — we're talking next level stuff.`, speaker: 'narrator', emotion: 'serious' },
+    { label: 'react3', startSec: 30, endSec: 34, text: `Bro that's actually insane... should I switch to this RIGHT NOW?`, speaker: 'reactor', emotion: 'surprised' },
+    { label: 'explain3', startSec: 34, endSec: 41, text: `Honestly? If you're in this space, you ABSOLUTELY should try it. It could change your entire workflow.`, speaker: 'narrator', emotion: 'excited' },
+    { label: 'cta', startSec: 41, endSec: 45, text: `Yo FOLLOW us right now for more breakdowns like this!`, speaker: 'reactor', emotion: 'cheerful' },
   ];
 }
 
@@ -91,33 +91,59 @@ async function generateSingleScript(
 
   const provider = getProvider();
 
-  const prompt = `You are a professional short-form video copywriter specialized in 15–60 second educational content.
+  const prompt = `You are a viral short-form video scriptwriter. Write a DIALOGUE between two animated characters reacting to a trending tech topic — the kind that gets millions of views on TikTok/Reels/Shorts.
 
-Given the compact input metadata, produce a JSON object with a single script variant tailored to the requested length.
-IMPORTANT: Output ONLY valid JSON. No markdown, no code fences, no explanation — just the raw JSON object.
+CHARACTERS:
+- "narrator" — The one who KNOWS. Drops bombs, reveals facts, builds hype. Speaks with confident energy.
+- "reactor" — The audience stand-in. Reacts with genuine shock, curiosity, skepticism. Asks the questions viewers are thinking.
+
+VOICE & EMOTION RULES (this is critical for quality):
+Each segment MUST include an "emotion" field. Valid emotions:
+  "excited" — high energy, fast, hyped up (use for hooks, big reveals)
+  "surprised" — genuine shock, disbelief (use for reactor hearing news)
+  "dramatic" — slow, deliberate, building tension (use for key facts)
+  "curious" — questioning, leaning in (use for reactor asking questions)
+  "cheerful" — warm, positive energy (use for CTA, good news)
+  "serious" — authoritative, factual (use for stats, technical details)
+  "sarcastic" — playful, ironic (use sparingly for humor)
+
+WRITING STYLE:
+- HOOK HARD in the first 3 seconds. Make them stop scrolling.
+- Write like real people talk — contractions, slang, emphasis with CAPS on key words.
+- Reactor should have GENUINE emotional reactions: "Wait WHAT?!", "Bro, no way!", "That's actually INSANE", "Hold on hold on..."
+- Include SPECIFIC numbers, names, dates — vague content = boring content.
+- Use dramatic pauses with "..." for tension: "And the craziest part is..."
+- Each segment = 2-5 seconds of speech (5-15 words).
+- Build to a climax — save the most shocking fact for the end.
+- End with reactor hyping the follow: "Yo, FOLLOW for more of this!"
+
+IMPORTANT: Output ONLY valid JSON. No markdown, no code fences, no explanation.
 
 Input:
 {
   "topic": "${idea.topic}",
   "channel": "${idea.channel}",
-  "styleHints": "${idea.visualHints.style ?? ''}",
   "targetLengthSec": ${lengthSec},
   "briefContext": "${idea.brief}"
 }
 
-Output JSON format:
+Output JSON:
 {
-  "title": "Short, clickable title (max 60 chars)",
-  "hook": "1-line hook, <= 8 words, suitable for first 3 seconds",
+  "title": "Clickbait-worthy title, max 60 chars",
+  "hook": "Narrator's opening line, <= 10 words",
   "timedSegments": [
-    {"label":"hook","startSec":0,"endSec":3,"text":"..."},
-    {"label":"point1","startSec":3,"endSec":12,"text":"..."},
-    {"label":"point2","startSec":12,"endSec":22,"text":"..."},
-    {"label":"cta","startSec":22,"endSec":${lengthSec},"text":"..."}
+    {"label":"hook","startSec":0,"endSec":3,"text":"...","speaker":"narrator","emotion":"excited"},
+    {"label":"react1","startSec":3,"endSec":6,"text":"...","speaker":"reactor","emotion":"surprised"},
+    {"label":"explain1","startSec":6,"endSec":12,"text":"...","speaker":"narrator","emotion":"serious"},
+    {"label":"react2","startSec":12,"endSec":15,"text":"...","speaker":"reactor","emotion":"curious"},
+    {"label":"explain2","startSec":15,"endSec":22,"text":"...","speaker":"narrator","emotion":"dramatic"},
+    {"label":"react3","startSec":22,"endSec":25,"text":"...","speaker":"reactor","emotion":"surprised"},
+    {"label":"explain3","startSec":25,"endSec":${lengthSec - 4},"text":"...","speaker":"narrator","emotion":"excited"},
+    {"label":"cta","startSec":${lengthSec - 4},"endSec":${lengthSec},"text":"Follow for more!","speaker":"reactor","emotion":"cheerful"}
   ],
-  "displayBullets": ["bullet 1","bullet 2","bullet 3"],
+  "displayBullets": ["specific fact 1","specific fact 2","specific fact 3"],
   "estimatedLengthSec": ${lengthSec},
-  "notesForVoice": "tone: energetic, pacing: medium-slow",
+  "notesForVoice": "narrator: confident dramatic authority, reactor: expressive shocked energy",
   "requires_verification": false
 }`;
 
@@ -130,7 +156,7 @@ Output JSON format:
 
   try {
     const result = await withRetry(
-      () => provider.generate({ prompt, maxTokens: 500, jsonMode: true }),
+      () => provider.generate({ prompt, maxTokens: 700, jsonMode: true }),
       { label: `script-gen-${scriptId}`, maxRetries: 2 },
     );
 
@@ -186,6 +212,7 @@ Output JSON format:
     displayBullets,
     estimatedLengthSec: lengthSec,
     notesForVoice,
+    dialogueMode: true,
     metadata: {
       styleHints: idea.visualHints as unknown as Record<string, unknown>,
       visualHints: idea.visualHints as unknown as Record<string, unknown>,

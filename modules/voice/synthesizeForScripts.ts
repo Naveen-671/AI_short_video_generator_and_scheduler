@@ -5,17 +5,68 @@ import { createLogger } from '../logger.js';
 import { readJson, writeJson, safeMkdir } from '../fsutils.js';
 import { getCached, setCache } from '../trend/cache.js';
 import { getTTSProviders, getVoiceProfile } from './ttsProviders.js';
-import type { ScriptArtifact, TimedSegment } from '../script/types.js';
+import { getCharacterForSpeaker } from '../video/characters.js';
+import type { ScriptArtifact, TimedSegment, EmotionHint } from '../script/types.js';
 import type {
   SynthesizeOptions,
   AudioManifest,
   AudioManifestItem,
   TTSProvider,
   TTSResult,
+  VoiceProfile,
+  Prosody,
 } from './types.js';
 
 const logger = createLogger('voice');
 const CACHE_MODULE = 'tts';
+
+/**
+ * Maps emotion hints to prosody adjustments for expressive speech.
+ * These values shift rate/pitch/volume to convey the target emotion.
+ */
+const EMOTION_PROSODY: Record<EmotionHint, Prosody> = {
+  excited:   { rate: '+18%', pitch: '+8Hz', volume: '+12%' },
+  surprised: { rate: '+10%', pitch: '+15Hz', volume: '+15%' },
+  dramatic:  { rate: '-15%', pitch: '-5Hz', volume: '+5%' },
+  calm:      { rate: '-5%', pitch: '+0Hz', volume: '+0%' },
+  cheerful:  { rate: '+12%', pitch: '+6Hz', volume: '+8%' },
+  serious:   { rate: '-8%', pitch: '-3Hz', volume: '+0%' },
+  curious:   { rate: '+5%', pitch: '+10Hz', volume: '+5%' },
+  sarcastic: { rate: '-5%', pitch: '+12Hz', volume: '+3%' },
+};
+
+/**
+ * Infer emotion from segment label when no explicit emotion is set.
+ */
+function inferEmotion(label: string, speaker?: string): EmotionHint {
+  if (label === 'hook') return 'excited';
+  if (label.startsWith('react')) return speaker === 'reactor' ? 'surprised' : 'curious';
+  if (label === 'cta') return 'cheerful';
+  if (label.startsWith('explain')) return 'serious';
+  if (label === 'reveal') return 'dramatic';
+  return 'calm';
+}
+
+/**
+ * Merge character default prosody with emotion-based prosody.
+ * Emotion prosody takes priority, character defaults are the baseline.
+ */
+function mergeProsody(charDefault: Prosody, emotion: Prosody): Prosody {
+  const parseVal = (s: string | undefined): number => {
+    if (!s) return 0;
+    return parseInt(s.replace(/[^-+\d]/g, ''), 10) || 0;
+  };
+  const suffix = (s: string | undefined): string => {
+    if (!s) return '%';
+    return s.replace(/[^a-zA-Z%]/g, '') || '%';
+  };
+
+  return {
+    rate: `${parseVal(charDefault.rate) + parseVal(emotion.rate) > 0 ? '+' : ''}${parseVal(charDefault.rate) + parseVal(emotion.rate)}${suffix(emotion.rate)}`,
+    pitch: `${parseVal(charDefault.pitch) + parseVal(emotion.pitch) > 0 ? '+' : ''}${parseVal(charDefault.pitch) + parseVal(emotion.pitch)}${suffix(emotion.pitch)}`,
+    volume: `${parseVal(charDefault.volume) + parseVal(emotion.volume) > 0 ? '+' : ''}${parseVal(charDefault.volume) + parseVal(emotion.volume)}${suffix(emotion.volume)}`,
+  };
+}
 
 function makeCacheKey(text: string, voiceProfileName: string): string {
   return crypto
@@ -30,11 +81,11 @@ function makeCacheKey(text: string, voiceProfileName: string): string {
  */
 async function synthesizeSegment(
   text: string,
-  voiceProfileName: string,
+  voiceProfile: VoiceProfile,
   outputPath: string,
   providers: TTSProvider[],
 ): Promise<TTSResult> {
-  const cacheKey = makeCacheKey(text, voiceProfileName);
+  const cacheKey = makeCacheKey(text, voiceProfile.name);
 
   // Check cache
   const cached = getCached<TTSResult>(CACHE_MODULE, cacheKey);
@@ -48,7 +99,6 @@ async function synthesizeSegment(
     return { ...cached, audioPath: outputPath };
   }
 
-  const voiceProfile = getVoiceProfile(voiceProfileName);
   let lastError: Error | undefined;
 
   for (const provider of providers) {
@@ -114,6 +164,7 @@ function maybeAddVerificationPrefix(segments: TimedSegment[], requiresVerificati
 
 /**
  * Process a single script: synthesize each segment, concatenate, return manifest item.
+ * In dialogue mode, uses different voices per speaker.
  */
 async function processScript(
   script: ScriptArtifact,
@@ -129,15 +180,49 @@ async function processScript(
   safeMkdir(segDir);
 
   const segmentPaths: string[] = [];
+  const segmentDurations: number[] = [];
   let totalDuration = 0;
   const channel = script.channel;
+
+  // Build voice profiles for dialogue
+  const narratorChar = getCharacterForSpeaker(channel, 'narrator');
+  const reactorChar = getCharacterForSpeaker(channel, 'reactor');
+  const narratorVoice: VoiceProfile = {
+    name: `${narratorChar.id}_voice`,
+    description: `${narratorChar.name} voice`,
+    ttsVoiceName: narratorChar.ttsVoice,
+  };
+  const reactorVoice: VoiceProfile = {
+    name: `${reactorChar.id}_voice`,
+    description: `${reactorChar.name} voice`,
+    ttsVoiceName: reactorChar.ttsVoice,
+  };
+  // Fallback for non-dialogue scripts
+  const defaultVoice = getVoiceProfile(channel);
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i]!;
     const segPath = path.join(segDir, `seg-${i.toString().padStart(3, '0')}.mp3`);
 
-    const result = await synthesizeSegment(seg.text, channel, segPath, providers);
+    // Pick voice based on speaker in dialogue mode
+    let voice: VoiceProfile;
+    if (script.dialogueMode && seg.speaker) {
+      const charConfig = seg.speaker === 'narrator' ? narratorChar : reactorChar;
+      const baseVoice = seg.speaker === 'narrator' ? narratorVoice : reactorVoice;
+
+      // Resolve emotion: explicit → inferred from label
+      const emotion = seg.emotion ?? inferEmotion(seg.label, seg.speaker);
+      const emotionProsody = EMOTION_PROSODY[emotion];
+      const mergedProsody = mergeProsody(charConfig.defaultProsody, emotionProsody);
+
+      voice = { ...baseVoice, prosody: mergedProsody };
+    } else {
+      voice = defaultVoice;
+    }
+
+    const result = await synthesizeSegment(seg.text, voice, segPath, providers);
     segmentPaths.push(result.audioPath);
+    segmentDurations.push(result.durationSec);
     totalDuration += result.durationSec;
   }
 
@@ -153,13 +238,12 @@ async function processScript(
     );
   }
 
-  const voiceProfile = getVoiceProfile(channel);
-
   return {
     scriptId: script.scriptId,
     audioPath: finalPath,
     durationSec: totalDuration,
-    voiceProfile: voiceProfile.name,
+    segmentDurations,
+    voiceProfile: `${narratorChar.id}+${reactorChar.id}`,
     cacheKey: makeCacheKey(script.scriptId, channel),
     synthesisProvider: providers.find((p) => p.isAvailable())?.name ?? 'mock',
     createdAt: new Date().toISOString(),

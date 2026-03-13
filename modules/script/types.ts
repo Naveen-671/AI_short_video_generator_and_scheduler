@@ -1,8 +1,12 @@
+export type EmotionHint = 'excited' | 'surprised' | 'dramatic' | 'calm' | 'cheerful' | 'serious' | 'curious' | 'sarcastic';
+
 export interface TimedSegment {
   label: string;
   startSec: number;
   endSec: number;
   text: string;
+  speaker?: 'narrator' | 'reactor';
+  emotion?: EmotionHint;
 }
 
 export interface ScriptArtifact {
@@ -15,6 +19,7 @@ export interface ScriptArtifact {
   displayBullets: string[];
   estimatedLengthSec: number;
   notesForVoice: string;
+  dialogueMode?: boolean;
   metadata: {
     styleHints: Record<string, unknown>;
     visualHints: Record<string, unknown>;

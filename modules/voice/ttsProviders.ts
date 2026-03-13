@@ -7,6 +7,26 @@ import type { TTSProvider, TTSResult, VoiceProfile, TTSProviderName } from './ty
 
 const logger = createLogger('tts');
 
+/**
+ * Get actual audio duration using ffprobe.
+ * Falls back to file-size estimate if ffprobe is unavailable.
+ */
+function getAudioDuration(filePath: string): number {
+  try {
+    const result = execFileSync('ffprobe', [
+      '-v', 'quiet',
+      '-show_entries', 'format=duration',
+      '-of', 'csv=p=0',
+      filePath,
+    ], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 10000 });
+    const dur = parseFloat(result.toString().trim());
+    if (!isNaN(dur) && dur > 0) return Math.round(dur * 100) / 100;
+  } catch { /* ffprobe unavailable */ }
+  // Fallback: rough estimate from file size (MP3 ~48kbps = ~6000 bytes/sec)
+  const size = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+  return Math.max(1, Math.round(size / 6000));
+}
+
 /** Voice profiles per channel */
 export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   anime_explains: {
@@ -106,38 +126,35 @@ export class EdgeTTSProvider implements TTSProvider {
     safeMkdir(outputPath.replace(/[/\\][^/\\]+$/, ''));
 
     const voice = voiceProfile.ttsVoiceName ?? 'en-US-AriaNeural';
+    const rate = voiceProfile.prosody?.rate ?? '+0%';
+    const pitch = voiceProfile.prosody?.pitch ?? '+0Hz';
+    const volume = voiceProfile.prosody?.volume ?? '+0%';
 
-    // Use edge-tts via Python subprocess
+    // Use edge-tts via Python subprocess with prosody control for emotional expression
     const script = `
-import asyncio, sys, json, edge_tts
+import asyncio, sys, edge_tts
 
 async def main():
     voice = sys.argv[1]
     text = sys.argv[2]
     output = sys.argv[3]
-    communicate = edge_tts.Communicate(text, voice)
+    rate = sys.argv[4]
+    pitch = sys.argv[5]
+    volume = sys.argv[6]
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume)
     await communicate.save(output)
-    # Estimate duration from saved audio file size (~16kbps for edge-tts mp3)
-    import os
-    file_size = os.path.getsize(output)
-    duration_sec = max(1, round(file_size / 2000))  # rough estimate
-    print(json.dumps({"duration": duration_sec}))
 
 asyncio.run(main())
 `;
 
     try {
-      const result = execFileSync(this.pythonPath, ['-c', script, voice, text, outputPath], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 60000,
-      });
+      execFileSync(
+        this.pythonPath,
+        ['-c', script, voice, text, outputPath, rate, pitch, volume],
+        { stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 },
+      );
 
-      const output = result.toString().trim();
-      let durationSec = Math.max(1, Math.round(text.length / 12.5));
-      try {
-        const parsed = JSON.parse(output);
-        if (parsed.duration) durationSec = parsed.duration;
-      } catch { /* use estimate */ }
+      const durationSec = getAudioDuration(outputPath);
 
       const cacheKey = crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
 

@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { renderFromScript } from '../modules/video/renderFromScript.js';
 import { safeMkdir, writeJson } from '../modules/fsutils.js';
-import { generateSrt, calculateDuration, buildDrawtextFilter } from '../modules/video/renderHelpers.js';
+import { generateSrt, calculateDuration, buildDialogueFilter } from '../modules/video/renderHelpers.js';
 import { getTemplateForChannel } from '../modules/video/templates.js';
 import type { VideoManifest } from '../modules/video/types.js';
 import type { TimedSegment } from '../modules/script/types.js';
@@ -109,14 +109,16 @@ describe('Video render helpers', () => {
     expect(calculateDuration([])).toBe(0);
   });
 
-  it('builds drawtext filter string', () => {
+  it('builds dialogue filter with drawtext captions', () => {
     const segments: TimedSegment[] = [
-      { label: 'hook', startSec: 0, endSec: 3, text: 'Hello' },
+      { label: 'hook', startSec: 0, endSec: 3, text: 'Hello', speaker: 'narrator' },
     ];
-    const filter = buildDrawtextFilter(segments, 'Arial', 48, '#fff');
-    expect(filter).toContain('drawtext=');
-    expect(filter).toContain("text='Hello'");
-    expect(filter).toContain('enable=');
+    const template = getTemplateForChannel('anime_explains');
+    const { filterComplex, inputCount } = buildDialogueFilter(segments, template, 'anime_explains', false, false, false);
+    expect(filterComplex).toContain('drawtext=');
+    expect(filterComplex).toContain('text=Hello');
+    expect(filterComplex).toContain('enable=');
+    expect(inputCount).toBe(2);
   });
 });
 

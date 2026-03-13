@@ -16,12 +16,17 @@ const logger = createLogger('video');
  */
 function findFfmpeg(): string | null {
   const envPath = process.env['FFMPEG_PATH'];
-  if (envPath && fs.existsSync(envPath)) return envPath;
+  if (envPath && fs.existsSync(envPath)) {
+    logger.info(`ffmpeg found via FFMPEG_PATH: ${envPath}`);
+    return envPath;
+  }
 
   try {
     execFileSync('ffmpeg', ['-version'], { stdio: 'pipe' });
+    logger.info('ffmpeg found in PATH');
     return 'ffmpeg';
-  } catch {
+  } catch (err) {
+    logger.error(`ffmpeg not found: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -77,21 +82,36 @@ async function renderSingleVideo(
   options: RenderOptions,
 ): Promise<VideoManifestItem> {
   const template = getTemplateForChannel(script.channel, options.template);
-  const durationSec = calculateDuration(script.timedSegments);
 
   const videoPath = path.join(runDir, `${script.scriptId}.mp4`);
   const srtPath = path.join(runDir, `${script.scriptId}.srt`);
   const thumbDir = path.join(runDir, 'thumbs');
   const thumbPath = path.join(thumbDir, `${script.scriptId}.png`);
 
-  // Generate SRT file
-  safeMkdir(runDir);
-  const srtContent = generateSrt(script.timedSegments);
-  fs.writeFileSync(srtPath, srtContent, 'utf-8');
-
   // Find the audio file for this script
   const audioItem = audioManifest.items.find((i) => i.scriptId === script.scriptId);
   const audioPath = audioItem?.audioPath;
+
+  // Recompute segment timings from actual audio durations (if available)
+  // This ensures captions sync with the concatenated audio rather than the script's ideal timeline
+  let segments = script.timedSegments;
+  if (audioItem?.segmentDurations && audioItem.segmentDurations.length === segments.length) {
+    let cursor = 0;
+    segments = segments.map((seg, i) => {
+      const dur = audioItem.segmentDurations![i]!;
+      const adjusted = { ...seg, startSec: Math.round(cursor * 100) / 100, endSec: Math.round((cursor + dur) * 100) / 100 };
+      cursor += dur;
+      return adjusted;
+    });
+    logger.info(`Adjusted segment timings from audio durations for ${script.scriptId} (${Math.round(cursor * 10) / 10}s actual vs ${calculateDuration(script.timedSegments)}s scripted)`);
+  }
+
+  const durationSec = calculateDuration(segments);
+
+  // Generate SRT file with actual timings
+  safeMkdir(runDir);
+  const srtContent = generateSrt(segments);
+  fs.writeFileSync(srtPath, srtContent, 'utf-8');
 
   if (ffmpegPath && audioPath && fs.existsSync(audioPath) && !options.dryRun) {
     // Real ffmpeg rendering
@@ -99,20 +119,22 @@ async function renderSingleVideo(
       audioPath,
       videoPath,
       durationSec,
-      script.timedSegments,
+      segments,
       template,
+      script.channel,
       options.watermark,
     );
 
-    logger.info(`Rendering ${script.scriptId}: ${cmdArgs.join(' ')}`);
+    logger.info(`Rendering ${script.scriptId}: ${cmdArgs[0]} [${cmdArgs.length} args]`);
+    logger.info(`Filter complex: ${cmdArgs[cmdArgs.indexOf('-filter_complex') + 1]?.slice(0, 200)}...`);
 
     try {
       const tmpDir = path.join(runDir, 'tmp');
       safeMkdir(tmpDir);
 
       execFileSync(cmdArgs[0]!, cmdArgs.slice(1), {
-        stdio: 'pipe',
-        timeout: 120_000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 300_000,
       });
 
       // Cleanup temp
@@ -120,10 +142,13 @@ async function renderSingleVideo(
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const stderr = (err as any)?.stderr?.toString?.() ?? '';
       logger.error(
-        `ffmpeg render failed for ${script.scriptId}`,
+        `ffmpeg render failed for ${script.scriptId}: ${errMsg}`,
         err instanceof Error ? err : new Error(String(err)),
       );
+      if (stderr) logger.error(`ffmpeg stderr: ${stderr}`);
       // Fall through to mock rendering
       writeMockVideo(videoPath, durationSec);
     }
@@ -134,8 +159,9 @@ async function renderSingleVideo(
         audioPath ?? 'audio.mp3',
         videoPath,
         durationSec,
-        script.timedSegments,
+        segments,
         template,
+        script.channel,
         options.watermark,
       );
       logger.info(`[DRY-RUN] Would execute: ${cmdArgs.join(' ')}`);

@@ -1,7 +1,14 @@
+export interface Prosody {
+  rate?: string;   // e.g. '+15%', '-10%'
+  pitch?: string;  // e.g. '+8Hz', '-5Hz'
+  volume?: string; // e.g. '+10%', '-5%'
+}
+
 export interface VoiceProfile {
   name: string;
   description: string;
   ttsVoiceName?: string;
+  prosody?: Prosody;
 }
 
 export type TTSProviderName = 'edge' | 'piper' | 'coqui' | 'mock';
@@ -17,6 +24,7 @@ export interface AudioManifestItem {
   scriptId: string;
   audioPath: string;
   durationSec: number;
+  segmentDurations?: number[];
   voiceProfile: string;
   cacheKey: string;
   synthesisProvider: TTSProviderName;

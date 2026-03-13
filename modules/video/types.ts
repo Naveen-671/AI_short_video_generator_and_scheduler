@@ -33,4 +33,8 @@ export interface TemplateConfig {
   textColor: string;
   accentColor: string;
   overlayStyle: string;
+  captionStyle?: 'highlight' | 'plain';
+  captionBgColor?: string;
+  captionHighlightColor?: string;
+  characterScale?: number;
 }
