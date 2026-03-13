@@ -57,6 +57,29 @@ function escapeDrawtext(text: string): string {
   return `'${inner}'`;
 }
 
+/**
+ * Word-wrap text into lines that fit on screen.
+ * Targets ~maxChars characters per line, breaking at word boundaries.
+ */
+function wrapText(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word;
+    } else if (current.length + 1 + word.length <= maxChars) {
+      current += ' ' + word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current.length > 0) lines.push(current);
+  return lines;
+}
+
 export interface OverlayInfo {
   title: string;
   sourceLine: string;
@@ -69,21 +92,22 @@ export interface OverlayInfo {
  *
  * Layout (1080×1920 vertical):
  * ┌──────────────────────┐
- * │ ▓▓ TOPIC TITLE ▓▓▓▓▓ │  ← Title bar (persistent)
+ * │ ▓▓ TOPIC TITLE ▓▓▓▓▓ │  ← Title bar (persistent, 80px)
  * │                       │
- * │  • Bullet 1           │  ← Bullet points (appear progressively)
- * │  • Bullet 2           │
- * │  • Bullet 3           │
- * │                       │
- * │     SPEAKER NAME      │  ← Speaker name label
- * │   ┌──────────────┐    │  ← Caption box (center)
- * │   │  CAPTION TEXT │    │
+ * │     SPEAKER NAME      │  ← Speaker name (y=350)
+ * │   ┌──────────────┐    │
+ * │   │  Caption L1   │   │  ← Word-wrapped caption lines (y=400+)
+ * │   │  Caption L2   │   │     Max 4 lines, centered
+ * │   │  Caption L3   │   │
  * │   └──────────────┘    │
  * │                       │
- * │  ┌───┐        ┌───┐   │  ← Character sprites (bottom)
- * │  │ N │        │ R │   │
- * │  └───┘        └───┘   │
- * │  Source: HackerNews    │  ← Source citation
+ * │  • Bullet 1           │  ← Progressive facts (y=750+)
+ * │  • Bullet 2           │
+ * │                       │
+ * │  ┌────┐      ┌────┐   │  ← Characters (270px wide, bottom)
+ * │  │ N  │      │ R  │   │
+ * │  └────┘      └────┘   │
+ * │  Source: HN            │  ← Source citation
  * │  ████████░░░░░░░░░░░░ │  ← Progress bar
  * └───────────────────────┘
  */
@@ -100,11 +124,9 @@ export function buildDialogueFilter(
   const captionBg = (template.captionBgColor ?? '#6b21a8').replace(/^#/, '0x');
   const captionHighlight = (template.captionHighlightColor ?? '#facc15').replace(/^#/, '0x');
   const textColor = template.textColor.replace(/^#/, '0x');
-  const fontSize = template.fontSize;
+  const baseFontSize = template.fontSize;
   const fontFamily = template.fontFamily;
 
-  // Track input indices
-  // [0] = background (color or video), [1] = audio, [2+] = sprite images
   let nextInput = 2;
   const narratorInput = hasNarratorSprite ? nextInput++ : -1;
   const reactorInput = hasReactorSprite ? nextInput++ : -1;
@@ -120,29 +142,25 @@ export function buildDialogueFilter(
   }
   currentLabel = '[bg]';
 
-  // --- Step 2: Overlay character sprites ---
-  // Character scale: ~40% of width = 432px wide
-  const charW = Math.round(1080 * (template.characterScale ?? 0.4));
-  const charMargin = 20;
+  // --- Step 2: Overlay character sprites (smaller: 25% width = ~270px) ---
+  const charW = Math.round(1080 * 0.25);
+  const charMargin = 30;
 
   if (hasNarratorSprite && narratorInput >= 0) {
     filterParts.push(`[${narratorInput}:v]scale=${charW}:-1[narrator_scaled]`);
 
-    // Build speaker glow: narrator glows when speaking
     const narratorEnableExprs = segments
       .filter(s => s.speaker === 'narrator')
       .map(s => `between(t\\,${s.startSec}\\,${s.endSec})`)
       .join('+');
 
-    // Position narrator at bottom-left
     if (narratorEnableExprs) {
-      // Add a subtle highlight rectangle behind narrator when speaking
       filterParts.push(
-        `${currentLabel}drawbox=x=0:y=ih-${charW + 200}:w=${charW + 2 * charMargin}:h=${charW + 200}:color=${captionHighlight}@0.15:t=fill:enable=${narratorEnableExprs}[bg_n_glow]`
+        `${currentLabel}drawbox=x=0:y=ih-500:w=${charW + 2 * charMargin}:h=500:color=${captionHighlight}@0.08:t=fill:enable=${narratorEnableExprs}[bg_n_glow]`
       );
-      filterParts.push(`[bg_n_glow][narrator_scaled]overlay=x=${charMargin}:y=H-h-${charMargin}[bg_n]`);
+      filterParts.push(`[bg_n_glow][narrator_scaled]overlay=x=${charMargin}:y=H-h-60[bg_n]`);
     } else {
-      filterParts.push(`${currentLabel}[narrator_scaled]overlay=x=${charMargin}:y=H-h-${charMargin}[bg_n]`);
+      filterParts.push(`${currentLabel}[narrator_scaled]overlay=x=${charMargin}:y=H-h-60[bg_n]`);
     }
     currentLabel = '[bg_n]';
   }
@@ -157,48 +175,83 @@ export function buildDialogueFilter(
 
     if (reactorEnableExprs) {
       filterParts.push(
-        `${currentLabel}drawbox=x=iw-${charW + 2 * charMargin}:y=ih-${charW + 200}:w=${charW + 2 * charMargin}:h=${charW + 200}:color=${captionHighlight}@0.15:t=fill:enable=${reactorEnableExprs}[bg_r_glow]`
+        `${currentLabel}drawbox=x=iw-${charW + 2 * charMargin}:y=ih-500:w=${charW + 2 * charMargin}:h=500:color=${captionHighlight}@0.08:t=fill:enable=${reactorEnableExprs}[bg_r_glow]`
       );
-      filterParts.push(`[bg_r_glow][reactor_scaled]overlay=x=W-w-${charMargin}:y=H-h-${charMargin}[bg_r]`);
+      filterParts.push(`[bg_r_glow][reactor_scaled]overlay=x=W-w-${charMargin}:y=H-h-60[bg_r]`);
     } else {
-      filterParts.push(`${currentLabel}[reactor_scaled]overlay=x=W-w-${charMargin}:y=H-h-${charMargin}[bg_r]`);
+      filterParts.push(`${currentLabel}[reactor_scaled]overlay=x=W-w-${charMargin}:y=H-h-60[bg_r]`);
     }
     currentLabel = '[bg_r]';
   }
 
-  // --- Step 3: Draw caption text with highlight box ---
-  // Caption position: center of screen, above character sprites
-  const captionY = 'h/2-60';
-  const boxPadding = 12;
+  // --- Step 3: Word-wrapped captions with background box ---
+  // Dynamic font size: scale down for long texts
+  const captionMaxChars = 38; // chars per line at base font
+  const captionBaseY = 380;   // top of caption area
+  const captionLineH = Math.round(baseFontSize * 1.4); // line height
+  const boxPadding = 14;
 
+  let segIdx = 0;
   for (const seg of segments) {
-    const escaped = escapeDrawtext(seg.text);
-    // Use accent color background for the speaking character
-    const isNarrator = seg.speaker === 'narrator';
-    const boxColor = isNarrator ? captionBg : `${captionHighlight}`;
+    // Adapt font size based on text length
+    let fontSize = baseFontSize;
+    if (seg.text.length > 200) fontSize = Math.round(baseFontSize * 0.7);
+    else if (seg.text.length > 120) fontSize = Math.round(baseFontSize * 0.8);
+    else if (seg.text.length > 80) fontSize = Math.round(baseFontSize * 0.9);
 
-    // Caption box: colored background with white text
+    const lineH = Math.round(fontSize * 1.4);
+    const maxChars = Math.round(captionMaxChars * (baseFontSize / fontSize));
+    const lines = wrapText(seg.text, maxChars);
+    // Limit to 5 lines max
+    const displayLines = lines.slice(0, 5);
+
+    const isNarrator = seg.speaker === 'narrator';
+    const boxColor = isNarrator ? captionBg : captionHighlight;
+
+    // Draw a background box for the entire caption area
+    const totalCaptionH = displayLines.length * lineH + boxPadding * 2;
     filterParts.push(
-      `${currentLabel}drawtext=text=${escaped}:font=${fontFamily}:fontsize=${fontSize}:fontcolor=${textColor}:` +
-      `x=(w-tw)/2:y=${captionY}:` +
-      `box=1:boxcolor=${boxColor}@0.85:boxborderw=${boxPadding}:` +
-      `enable=between(t\\,${seg.startSec}\\,${seg.endSec})` +
-      `[cap_${seg.label}]`
+      `${currentLabel}drawbox=x=40:y=${captionBaseY - boxPadding}:w=1000:h=${totalCaptionH}:color=${boxColor}@0.80:t=fill:` +
+      `enable=between(t\\,${seg.startSec}\\,${seg.endSec})[cbox_${segIdx}]`
     );
-    currentLabel = `[cap_${seg.label}]`;
+    currentLabel = `[cbox_${segIdx}]`;
+
+    // Draw each line of wrapped text
+    for (let lineIdx = 0; lineIdx < displayLines.length; lineIdx++) {
+      const escaped = escapeDrawtext(displayLines[lineIdx]!);
+      const yPos = captionBaseY + lineIdx * lineH;
+      const labelSuffix = `${segIdx}_${lineIdx}`;
+
+      filterParts.push(
+        `${currentLabel}drawtext=text=${escaped}:font=${fontFamily}:fontsize=${fontSize}:fontcolor=${textColor}:` +
+        `x=(w-tw)/2:y=${yPos}:` +
+        `enable=between(t\\,${seg.startSec}\\,${seg.endSec})` +
+        `[cap_${labelSuffix}]`
+      );
+      currentLabel = `[cap_${labelSuffix}]`;
+    }
+    segIdx++;
   }
 
-  // --- Step 4: Speaker name indicator ---
-  const speakerFontSize = Math.round(fontSize * 0.6);
-  const nameY = 'h/2-100';
+  // --- Step 4: Speaker name indicator (above caption area) ---
+  const speakerFontSize = Math.round(baseFontSize * 0.55);
+  const nameY = captionBaseY - 50;
 
   for (const seg of segments) {
     const speakerName = seg.speaker === 'narrator' ? pair.narrator.name : pair.reactor.name;
     const escapedName = escapeDrawtext(speakerName.toUpperCase());
+    // Speaker indicator circle: colored dot before name
+    const dotColor = seg.speaker === 'narrator' ? captionBg : captionHighlight;
+
+    filterParts.push(
+      `${currentLabel}drawbox=x=420:y=${nameY + 4}:w=16:h=16:color=${dotColor}:t=fill:` +
+      `enable=between(t\\,${seg.startSec}\\,${seg.endSec})[ndot_${seg.label}]`
+    );
+    currentLabel = `[ndot_${seg.label}]`;
 
     filterParts.push(
       `${currentLabel}drawtext=text=${escapedName}:font=${fontFamily}:fontsize=${speakerFontSize}:fontcolor=${captionHighlight}:` +
-      `x=(w-tw)/2:y=${nameY}:` +
+      `x=445:y=${nameY}:` +
       `enable=between(t\\,${seg.startSec}\\,${seg.endSec})` +
       `[name_${seg.label}]`
     );
@@ -208,42 +261,56 @@ export function buildDialogueFilter(
   // --- Step 5: Info overlays (title, source, bullets, progress bar) ---
   if (overlay) {
     const accentColor = (template.accentColor ?? '#e94560').replace(/^#/, '0x');
-    const overlayFontSize = Math.round(fontSize * 0.55);
-    const smallFontSize = Math.round(fontSize * 0.45);
+    const overlayFontSize = Math.round(baseFontSize * 0.52);
+    const smallFontSize = Math.round(baseFontSize * 0.42);
     const dur = overlay.totalDuration;
 
-    // 5a: Title bar — dark semi-transparent strip at top with title text
+    // 5a: Title bar — dark strip at top
     filterParts.push(
-      `${currentLabel}drawbox=x=0:y=0:w=iw:h=90:color=0x000000@0.65:t=fill[title_bg]`
+      `${currentLabel}drawbox=x=0:y=0:w=iw:h=80:color=0x000000@0.70:t=fill[title_bg]`
     );
     currentLabel = '[title_bg]';
+
+    // Accent line under title
+    filterParts.push(
+      `${currentLabel}drawbox=x=0:y=78:w=iw:h=3:color=${accentColor}@0.6:t=fill[title_line]`
+    );
+    currentLabel = '[title_line]';
 
     const escapedTitle = escapeDrawtext(overlay.title.toUpperCase());
     filterParts.push(
       `${currentLabel}drawtext=text=${escapedTitle}:font=${fontFamily}:fontsize=${overlayFontSize}:fontcolor=${captionHighlight}:` +
-      `x=(w-tw)/2:y=28[title_txt]`
+      `x=(w-tw)/2:y=22[title_txt]`
     );
     currentLabel = '[title_txt]';
 
-    // 5b: Bullet points — appear progressively in the upper area
+    // 5b: Bullet points — appear progressively below caption area
     if (overlay.displayBullets.length > 0) {
-      const bulletStartTime = Math.max(3, dur * 0.08);
-      const bulletInterval = (dur * 0.7) / Math.max(1, overlay.displayBullets.length);
-      const bulletX = 60;
-      const bulletStartY = 130;
-      const bulletLineH = Math.round(overlayFontSize * 1.6);
+      const bulletStartTime = Math.max(5, dur * 0.1);
+      const bulletInterval = (dur * 0.6) / Math.max(1, overlay.displayBullets.length);
+      const bulletX = 80;
+      const bulletStartY = 700;
+      const bulletLineH = Math.round(smallFontSize * 1.8);
 
-      for (let i = 0; i < overlay.displayBullets.length; i++) {
-        const bulletText = escapeDrawtext(`\u2022 ${overlay.displayBullets[i]!}`);
+      for (let i = 0; i < Math.min(overlay.displayBullets.length, 5); i++) {
+        const bulletLines = wrapText(overlay.displayBullets[i]!, 45);
+        const bulletText = escapeDrawtext(`\u25B8 ${bulletLines[0]!}`);
         const showTime = bulletStartTime + i * bulletInterval;
         const yPos = bulletStartY + i * bulletLineH;
 
-        // Background strip for readability
+        // Bullet background
         filterParts.push(
-          `${currentLabel}drawbox=x=40:y=${yPos - 4}:w=1000:h=${bulletLineH}:color=0x000000@0.45:t=fill:` +
+          `${currentLabel}drawbox=x=55:y=${yPos - 3}:w=970:h=${bulletLineH - 4}:color=0x000000@0.50:t=fill:` +
           `enable=gte(t\\,${showTime.toFixed(2)})[bul_bg_${i}]`
         );
         currentLabel = `[bul_bg_${i}]`;
+
+        // Accent left bar
+        filterParts.push(
+          `${currentLabel}drawbox=x=55:y=${yPos - 3}:w=4:h=${bulletLineH - 4}:color=${accentColor}@0.8:t=fill:` +
+          `enable=gte(t\\,${showTime.toFixed(2)})[bul_bar_${i}]`
+        );
+        currentLabel = `[bul_bar_${i}]`;
 
         filterParts.push(
           `${currentLabel}drawtext=text=${bulletText}:font=${fontFamily}:fontsize=${smallFontSize}:fontcolor=0xf0f0f0:` +
@@ -254,29 +321,29 @@ export function buildDialogueFilter(
       }
     }
 
-    // 5c: Source citation — bottom area, above the progress bar
+    // 5c: Source citation — above characters, bottom area
     if (overlay.sourceLine) {
       const escapedSource = escapeDrawtext(overlay.sourceLine);
       filterParts.push(
-        `${currentLabel}drawbox=x=0:y=ih-50:w=iw:h=44:color=0x000000@0.55:t=fill[src_bg]`
+        `${currentLabel}drawbox=x=0:y=ih-52:w=iw:h=46:color=0x000000@0.60:t=fill[src_bg]`
       );
       currentLabel = '[src_bg]';
 
       filterParts.push(
-        `${currentLabel}drawtext=text=${escapedSource}:font=${fontFamily}:fontsize=${smallFontSize}:fontcolor=0xcccccc:` +
+        `${currentLabel}drawtext=text=${escapedSource}:font=${fontFamily}:fontsize=${smallFontSize}:fontcolor=0xbbbbbb:` +
         `x=(w-tw)/2:y=h-44[src_txt]`
       );
       currentLabel = '[src_txt]';
     }
 
-    // 5d: Progress bar — thin accent-colored bar at the very bottom
+    // 5d: Progress bar — accent-colored bar at the very bottom
     filterParts.push(
       `${currentLabel}drawbox=x=0:y=ih-6:w=iw*t/${dur.toFixed(2)}:h=6:color=${accentColor}@0.9:t=fill[prog]`
     );
     currentLabel = '[prog]';
   }
 
-  // Final output label — replace the last occurrence of currentLabel with [outv]
+  // Final output label
   const finalFilter = filterParts.join(';');
   const lastIdx = finalFilter.lastIndexOf(currentLabel);
   const outputFilter = lastIdx >= 0
@@ -353,10 +420,10 @@ export function buildFfmpegCommand(
   args.push('-map', '[outv]', '-map', '1:a');
   args.push(
     '-c:v', 'libx264',
-    '-preset', 'veryfast',
-    '-crf', '23',
+    '-preset', 'medium',
+    '-crf', '18',
     '-c:a', 'aac',
-    '-b:a', '128k',
+    '-b:a', '192k',
     '-movflags', '+faststart',
     '-shortest',
     '-t', durationSec.toString(),
