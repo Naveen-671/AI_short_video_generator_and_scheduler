@@ -6,3 +6,4 @@
 ✔ agent-400_script_generator — multi-variant script generator with timed segments, caching, retries — 2026-03-13T17:25:00Z — artifacts: data/scripts/<runId>.json
 ✔ agent-500_voice_generation — modular TTS pipeline with provider fallback, mock synthesis — 2026-03-13T17:30:00Z — artifacts: data/audio/<runId>.json
 ✔ agent-600_video_renderer — template-driven video renderer with ffmpeg, SRT, thumbnails — 2026-03-13T17:36:00Z — artifacts: data/videos/<runId>.json
+✔ agent-700_captions_generator — whisper-based transcription with SRT/VTT, word highlights — 2026-03-13T17:40:00Z — artifacts: data/captions/<runId>.json
