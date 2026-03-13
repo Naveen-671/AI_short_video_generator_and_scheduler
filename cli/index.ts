@@ -10,6 +10,7 @@ import { renderFromScript } from '../modules/video/renderFromScript.js';
 import { generateForVideos } from '../modules/captions/generateForVideos.js';
 import { uploadVideos } from '../modules/uploader/uploadVideos.js';
 import { runPipeline } from '../modules/scheduler/pipeline.js';
+import { collectMetrics } from '../modules/analytics/collectMetrics.js';
 
 const logger = createLogger('cli');
 
@@ -285,6 +286,21 @@ if (command === 'trend') {
     })
     .catch((err) => {
       logger.error('Pipeline failed', err instanceof Error ? err : new Error(String(err)));
+      // eslint-disable-next-line no-console
+      console.error('Error:', (err as Error).message);
+      process.exit(1);
+    });
+} else if (command === 'analytics') {
+  const runIdArg = args.find((a) => a.startsWith('--runId='));
+  const runId = runIdArg ? runIdArg.split('=')[1]! : undefined;
+
+  collectMetrics({ runId })
+    .then((manifestPath) => {
+      // eslint-disable-next-line no-console
+      console.log(`Analytics collected: ${manifestPath}`);
+    })
+    .catch((err) => {
+      logger.error('Analytics failed', err instanceof Error ? err : new Error(String(err)));
       // eslint-disable-next-line no-console
       console.error('Error:', (err as Error).message);
       process.exit(1);
