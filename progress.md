@@ -8,3 +8,4 @@
 ✔ agent-600_video_renderer — template-driven video renderer with ffmpeg, SRT, thumbnails — 2026-03-13T17:36:00Z — artifacts: data/videos/<runId>.json
 ✔ agent-700_captions_generator — whisper-based transcription with SRT/VTT, word highlights — 2026-03-13T17:40:00Z — artifacts: data/captions/<runId>.json
 ✔ agent-800_uploader — automated video upload pipeline with platform mock uploaders — 2026-03-13T17:43:00Z — artifacts: data/uploads/<runId>.json
+✔ agent-900_scheduler — automated pipeline execution with lock, config, step tracking — 2026-03-13T17:48:00Z — artifacts: data/runs/<runId>.json
