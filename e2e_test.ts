@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * End-to-end dialogue pipeline test.
  * Runs: scripts → voice (emotional TTS) → video render
@@ -10,6 +11,10 @@ import { generateScriptsFromTopics } from './modules/script/generateScripts.js';
 import { synthesizeForScripts } from './modules/voice/synthesizeForScripts.js';
 import { renderFromScript } from './modules/video/renderFromScript.js';
 import { readJson } from './modules/fsutils.js';
+import type { VideoIdea } from './modules/topic/types.js';
+import type { ScriptArtifact } from './modules/script/types.js';
+import type { AudioManifest } from './modules/voice/types.js';
+import type { VideoManifest } from './modules/video/types.js';
 
 const RUN_ID = 'e2e-dialogue-test';
 
@@ -34,7 +39,7 @@ async function main() {
   console.log(`Using topics from: ${topicFiles[0]}`);
 
   // Limit to 1 idea for speed (modify the copied file)
-  const ideas = readJson<any[]>(dstTopics)!;
+  const ideas = readJson<VideoIdea[]>(dstTopics)!;
   const limitedIdeas = ideas.slice(0, 1); // Just 1 video for testing
   fs.writeFileSync(dstTopics, JSON.stringify(limitedIdeas, null, 2));
   console.log(`Topic: "${limitedIdeas[0].topic}" (channel: ${limitedIdeas[0].channel})\n`);
@@ -50,7 +55,7 @@ async function main() {
   console.log(`Scripts: ${scriptsPath} (${Date.now() - t1}ms)`);
 
   // Show the script content
-  const scripts = readJson<any[]>(scriptsPath)!;
+  const scripts = readJson<ScriptArtifact[]>(scriptsPath)!;
   for (const s of scripts) {
     console.log(`\n  Title: "${s.title}"`);
     console.log(`  Dialogue mode: ${s.dialogueMode}`);
@@ -67,7 +72,7 @@ async function main() {
   const audioPath = await synthesizeForScripts(RUN_ID, { concurrency: 1 });
   console.log(`Audio: ${audioPath} (${Date.now() - t2}ms)`);
 
-  const audioManifest = readJson<any>(audioPath)!;
+  const audioManifest = readJson<AudioManifest>(audioPath)!;
   for (const item of audioManifest.items) {
     const fileSize = fs.existsSync(item.audioPath) ? fs.statSync(item.audioPath).size : 0;
     console.log(`  ${item.scriptId}: ${item.durationSec}s, ${(fileSize / 1024).toFixed(1)}KB, voice: ${item.voiceProfile}`);
@@ -80,7 +85,7 @@ async function main() {
     const videoPath = await renderFromScript(RUN_ID, { concurrency: 1 });
     console.log(`Video: ${videoPath} (${Date.now() - t3}ms)`);
 
-    const videoManifest = readJson<any>(videoPath)!;
+    const videoManifest = readJson<VideoManifest>(videoPath)!;
     for (const item of videoManifest.items) {
       const fileSize = fs.existsSync(item.videoPath) ? fs.statSync(item.videoPath).size : 0;
       console.log(`  ${item.scriptId}: ${item.durationSec}s, ${(fileSize / 1024).toFixed(1)}KB`);
